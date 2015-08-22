@@ -1,0 +1,30 @@
+{
+  "name": "solid-acl",
+  "version": "0.1.0",
+  "description": "Access Control List, the solid way",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicola/solid-acl.git"
+  },
+  "keywords": [
+    "acl",
+    "ldp",
+    "linked",
+    "data",
+    "rdf",
+    "solid"
+  ],
+  "author": "Nicola Greco <me@nicola.io> (http://nicolagreco.com/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nicola/solid-acl/issues"
+  },
+  "homepage": "https://github.com/nicola/solid-acl",
+  "dependencies": {
+    "async": "^1.4.2"
+  }
+}
