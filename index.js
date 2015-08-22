@@ -1,8 +1,8 @@
 module.exports = ACL
 
 var async = require('async')
-var string = require('string')
 var debug = require('debug')('solid:acl')
+var utils = require('./lib/utils')
 
 function ACL (rdf, store, opts) {
   var self = this
@@ -11,24 +11,10 @@ function ACL (rdf, store, opts) {
   self.suffix = opts.suffix || '.acl'
 }
 
-function possibleACLs (uri, suffix) {
-  var current = ''
-  var uris = uri
-    .split('/')
-    .map(function (uri) {
-      current += uri
-      if (string(current).endsWith(suffix)) {
-        return current
-      }
-      return current + suffix
-    })
-  return uris
-}
-
 ACL.prototype.allow = function (user, mode, resource, callback) {
   var self = this
   var accessType = 'accessTo'
-  var uris = possibleACLs(resource, self.suffix)
+  var uris = utils.possibleACLs(resource, self.suffix)
 
   async.eachSeries(
     uris,
@@ -55,34 +41,15 @@ ACL.prototype.allow = function (user, mode, resource, callback) {
     })
 }
 
-function getMode (graph, mode) {
-  return graph
-    .match(
-      undefined,
-      'http://www.w3.org/ns/auth/acl#mode',
-      'http://www.w3.org/ns/auth/acl#' + mode)
-    .toArray()
-}
-
-function getAccessType (graph, rule, accessType, uri) {
-  return graph
-    .match(
-      rule,
-      'http://www.w3.org/ns/auth/acl#' + accessType,
-      uri)
-    .toArray()
-}
-
 ACL.prototype.isAllowed = function (graph, user, mode, uri, callback) {
   var self = this
   debug('In allow origin')
 
   // Owner statement
-  var ownerStatements = graph
-    .match(
-      uri,
-      'http://www.w3.org/ns/auth/acl#owner',
-      user)
+  var ownerStatements = graph.match(
+    uri,
+    'http://www.w3.org/ns/auth/acl#owner',
+    user)
 
   if (ownerStatements.length) {
     debug(mode + ' access allowed (as owner) for: ' + user)
@@ -90,11 +57,10 @@ ACL.prototype.isAllowed = function (graph, user, mode, uri, callback) {
   }
 
   // Agent statement
-  var agentStatements = graph
-    .match(
-      uri,
-      'http://www.w3.org/ns/auth/acl#agent',
-      user)
+  var agentStatements = graph.match(
+    uri,
+    'http://www.w3.org/ns/auth/acl#agent',
+    user)
 
   if (agentStatements.length) {
     debug(mode + ' access allowed (as agent) for: ' + user)
@@ -102,11 +68,10 @@ ACL.prototype.isAllowed = function (graph, user, mode, uri, callback) {
   }
 
   // Agent class statement
-  var agentClassStatements = graph
-    .match(
-      uri,
-      'http://www.w3.org/ns/auth/acl#agentClass',
-      undefined)
+  var agentClassStatements = graph.match(
+    uri,
+    'http://www.w3.org/ns/auth/acl#agentClass',
+    undefined)
 
   if (agentClassStatements.length === 0) {
     return callback(false)
@@ -124,18 +89,16 @@ ACL.prototype.isAllowed = function (graph, user, mode, uri, callback) {
     self.store.graph(groupURI, function (err, groupGraph) {
       if (err) return found(err)
       // Type statement
-      var typeStatements = groupGraph
-        .match(
-          agentClassElem,
-          'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
-          'http://xmlns.com/foaf/0.1/Group')
+      var typeStatements = groupGraph.match(
+        agentClassElem,
+        'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
+        'http://xmlns.com/foaf/0.1/Group')
 
       if (groupGraph.statements.length > 0 && typeStatements.length > 0) {
-        var memberStatements = groupGraph
-          .match(
-            agentClassElem,
-            'http://xmlns.com/foaf/0.1/member',
-            user)
+        var memberStatements = groupGraph.match(
+          agentClassElem,
+          'http://xmlns.com/foaf/0.1/member',
+          user)
 
         if (memberStatements.length) {
           debug(user + ' listed as member of the group ' + groupURI)
@@ -158,14 +121,14 @@ ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback)
 
   debug('Found policies in ' + uri)
 
-  var modeStatements = getMode(graph, mode)
-  var controlStatements = getMode(graph, mode)
+  var modeStatements = utils.getMode(graph, mode)
+  var controlStatements = utils.getMode(graph, mode)
   var statements = controlStatements.concat(modeStatements)
 
   async.some(
     statements,
     function (statement, done) {
-      var accesses = getAccessType(graph, statement, accessType, uri)
+      var accesses = utils.getAccessType(graph, statement, accessType, uri)
 
       async.some(accesses, function (access, found) {
         self.isAllowed(graph, user, mode, statement, found)
@@ -186,7 +149,6 @@ ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback)
         }
         return callback(err)
       }
-
       return callback(null, true)
     })
 }
