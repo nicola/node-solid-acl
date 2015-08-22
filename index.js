@@ -73,22 +73,6 @@ function getAccessType (graph, rule, accessType, uri) {
     .toArray()
 }
 
-ACL.prototype.findModeRule = function (graph, user, accessType, mode, uri, callback) {
-  var self = this
-  var modeStatements = getMode(graph, mode)
-  var controlStatements = getMode(graph, mode)
-  var statements = controlStatements.concat(modeStatements)
-
-  async.some(statements, function (statement, done) {
-    var accesses = getAccessType(graph, statement, accessType, uri)
-
-    async.some(accesses, function (access, found) {
-      self.isAllowed(graph, user, mode, statement, found)
-    }, done)
-
-  }, callback)
-}
-
 ACL.prototype.isAllowed = function (graph, user, mode, uri, callback) {
   var self = this
   debug('In allow origin')
@@ -174,22 +158,35 @@ ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback)
 
   debug('Found policies in ' + uri)
 
-  self.findModeRule(graph, mode, user, accessType, uri, function (found) {
+  var modeStatements = getMode(graph, mode)
+  var controlStatements = getMode(graph, mode)
+  var statements = controlStatements.concat(modeStatements)
 
-    if (!found) {
-      var err = new Error()
-      if (!user || user.length === 0) {
-        debug('Authentication required')
-        err.status = 401
-        err.message = 'Access to ' + uri + ' requires authorization'
-      } else {
-        debug(mode + ' access denied for: ' + user)
-        err.status = 403
-        err.message = 'Access denied for ' + user
+  async.some(
+    statements,
+    function (statement, done) {
+      var accesses = getAccessType(graph, statement, accessType, uri)
+
+      async.some(accesses, function (access, found) {
+        self.isAllowed(graph, user, mode, statement, found)
+      }, done)
+
+    },
+    function (found) {
+      if (!found) {
+        var err = new Error()
+        if (!user || user.length === 0) {
+          debug('Authentication required')
+          err.status = 401
+          err.message = 'Access to ' + uri + ' requires authorization'
+        } else {
+          debug(mode + ' access denied for: ' + user)
+          err.status = 403
+          err.message = 'Access denied for ' + user
+        }
+        return callback(err)
       }
-      return callback(err)
-    }
 
-    return callback(null, true)
-  })
+      return callback(null, true)
+    })
 }
