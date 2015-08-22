@@ -4,11 +4,11 @@ var async = require('async')
 var string = require('string')
 var debug = require('debug')('solid:acl')
 
-function ACL (rdf, opts) {
+function ACL (rdf, store, opts) {
   var self = this
   opts = opts || {}
+  self.store = store
   self.suffix = opts.suffix || '.acl'
-  opts.store = opts.store
 }
 
 function possibleACLs (uri, suffix) {
@@ -25,7 +25,7 @@ function possibleACLs (uri, suffix) {
   return uris
 }
 
-ACL.prototype.find = function (user, mode, resource, callback) {
+ACL.prototype.allow = function (user, mode, resource, callback) {
   var self = this
   var accessType = 'accessTo'
   var uris = possibleACLs(resource, self.suffix)
