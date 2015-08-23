@@ -8,6 +8,7 @@ function ACL (rdf, store, opts) {
   var self = this
   opts = opts || {}
   self.store = store
+  self.origin = opts.origin
   self.suffix = opts.suffix || '.acl'
 }
 
