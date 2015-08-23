@@ -11,7 +11,7 @@ function ACL (rdf, store, opts) {
   self.suffix = opts.suffix || '.acl'
 }
 
-ACL.prototype.allow = function (user, mode, resource, callback) {
+ACL.prototype.can = function (user, mode, resource, callback) {
   var self = this
   var accessType = 'accessTo'
   var uris = utils.possibleACLs(resource, self.suffix)
@@ -20,7 +20,11 @@ ACL.prototype.allow = function (user, mode, resource, callback) {
     uris,
     function (uri, done) {
       self.store.graph(uri, function (graph, err) {
-        if (err) return done(err)
+        if (err) {
+          // TODO work on the error
+          err.status = 500
+          return done(err)
+        }
 
         self.findRule(graph, user, mode, accessType, uri, function (err, allowed) {
           accessType = 'defaultForNew'
@@ -41,7 +45,7 @@ ACL.prototype.allow = function (user, mode, resource, callback) {
     })
 }
 
-ACL.prototype.isAllowed = function (graph, user, mode, uri, callback) {
+ACL.prototype.findSubgraphRule = function (graph, user, mode, uri, callback) {
   var self = this
   debug('In allow origin')
 
@@ -121,9 +125,12 @@ ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback)
 
   debug('Found policies in ' + uri)
 
-  var modeStatements = utils.getMode(graph, mode)
-  var controlStatements = utils.getMode(graph, mode)
-  var statements = controlStatements.concat(modeStatements)
+  var statements = utils.getMode(graph, mode)
+  if (mode !== 'Control') {
+    statements = utils
+      .getMode(graph, 'Control')
+      .concat(statements)
+  }
 
   async.some(
     statements,
@@ -131,7 +138,25 @@ ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback)
       var accesses = utils.getAccessType(graph, statement, accessType, uri)
 
       async.some(accesses, function (access, found) {
-        self.isAllowed(graph, user, mode, statement, found)
+        var origins = graph
+          .match(
+            statement,
+            'http://www.w3.org/ns/auth/acl#origin',
+            undefined)
+          .toArray()
+
+        if (self.origin.length > 0 && origins.length > 0) {
+          async.some(origins, function (origin, done) {
+            if (self.origin === origin) {
+              debug('Found policy for origin: ' + origin)
+              return self.findSubgraphRule(graph, user, mode, statement, done)
+            }
+            return done(false)
+          }, found)
+        } else {
+          debug('No origin found, moving on.')
+          self.findSubgraphRule(graph, user, mode, statement, found)
+        }
       }, done)
 
     },
