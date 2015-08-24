@@ -4,15 +4,14 @@ var async = require('async')
 var debug = require('debug')('solid:acl')
 var utils = require('./lib/utils')
 
-function ACL (rdf, store, opts) {
+function ACL (store, opts) {
   var self = this
   opts = opts || {}
   self.store = store
-  self.origin = opts.origin
   self.suffix = opts.suffix || '.acl'
 }
 
-ACL.prototype.can = function (user, mode, resource, callback) {
+ACL.prototype.can = function (user, mode, resource, callback, options) {
   var self = this
   var accessType = 'accessTo'
   var uris = utils.possibleACLs(resource, self.suffix)
@@ -30,7 +29,7 @@ ACL.prototype.can = function (user, mode, resource, callback) {
         self.findRule(graph, user, mode, accessType, uri, function (err, allowed) {
           accessType = 'defaultForNew'
           done(err || allowed)
-        })
+        }, options)
       })
     },
     function (err) {
@@ -115,7 +114,7 @@ ACL.prototype.findSubgraphRule = function (graph, user, mode, uri, callback) {
   }, callback)
 }
 
-ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback) {
+ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback, options) {
   var self = this
 
   // TODO check if this is necessary
@@ -127,10 +126,15 @@ ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback)
   debug('Found policies in ' + uri)
 
   var statements = utils.getMode(graph, mode)
+
+  // Also check for
   if (mode !== 'Control') {
-    statements = utils
-      .getMode(graph, 'Control')
+    statements = utils.getMode(graph, 'Control')
       .concat(statements)
+  }
+  if (mode === 'Append') {
+    statements = statements
+      .concat(utils.getMode(graph, 'Write'))
   }
 
   async.some(
@@ -148,7 +152,7 @@ ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback)
 
         if (self.origin.length > 0 && origins.length > 0) {
           async.some(origins, function (origin, done) {
-            if (self.origin === origin) {
+            if (options.origin === origin) {
               debug('Found policy for origin: ' + origin)
               return self.findSubgraphRule(graph, user, mode, statement, done)
             }
