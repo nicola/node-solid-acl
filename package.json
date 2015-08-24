@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/nicola/solid-acl",
   "dependencies": {
-    "async": "^1.4.2"
+    "async": "^1.4.2",
+    "debug": "^2.2.0"
   }
 }
