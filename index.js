@@ -25,7 +25,11 @@ ACL.prototype.can = function (user, mode, resource, callback, options) {
           err.status = 500
           return done(err)
         }
-
+        if (graph === null) {
+          err = new Error('Not Found')
+          err.status = 404
+          return done(err)
+        }
         self.findRule(graph, user, mode, accessType, uri, function (err, allowed) {
           accessType = 'defaultForNew'
           done(err || allowed)
