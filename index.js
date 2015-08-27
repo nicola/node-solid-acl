@@ -20,19 +20,13 @@ ACL.prototype.can = function (user, mode, resource, callback, options) {
     uris,
     function (uri, done) {
       self.store.graph(uri, function (graph, err) {
-        if (err) {
-          // TODO work on the error
-          err.status = 500
-          return done(err)
+        if (err || !graph) {
+          return done(null)
         }
-        if (graph === null) {
-          err = new Error('Not Found')
-          err.status = 404
-          return done(err)
-        }
+
         self.findRule(graph, user, mode, accessType, uri, function (err, allowed) {
           accessType = 'defaultForNew'
-          done(err || allowed)
+          done(err ? null : allowed)
         }, options)
       })
     },
@@ -85,26 +79,26 @@ ACL.prototype.findSubgraphRule = function (graph, user, mode, uri, callback) {
     return callback(false)
   }
 
-  async.some(agentClassStatements, function (agentClassElem, found) {
+  async.some(agentClassStatements.toArray(), function (agentClassTriple, found) {
     // Check for FOAF groups
     debug('Found agentClass policy')
-    if (agentClassElem.sameTerm('http://xmlns.com/foaf/0.1/Agent')) {
+    if (agentClassTriple.sameTerm('http://xmlns.com/foaf/0.1/Agent')) {
       debug(mode + ' allowed access as FOAF agent')
       return found(true)
     }
-    var groupURI = agentClassElem.subject.toString()
+    var groupURI = agentClassTriple.subject.toString()
 
     self.store.graph(groupURI, function (err, groupGraph) {
       if (err) return found(err)
       // Type statement
       var typeStatements = groupGraph.match(
-        agentClassElem,
+        '',
         'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
         'http://xmlns.com/foaf/0.1/Group')
 
-      if (groupGraph.statements.length > 0 && typeStatements.length > 0) {
+      if (groupGraph.length > 0 && typeStatements.length > 0) {
         var memberStatements = groupGraph.match(
-          agentClassElem,
+          agentClassTriple.object.toString(),
           'http://xmlns.com/foaf/0.1/member',
           user)
 
@@ -144,12 +138,13 @@ ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback,
   async.some(
     statements,
     function (statement, done) {
-      var accesses = utils.getAccessType(graph, statement, accessType, uri)
+      var accesses = utils.getAccessType(graph, statementSubject, accessType, uri)
 
+      var statementSubject = statement.subject.toString()
       async.some(accesses, function (access, found) {
         var origins = graph
           .match(
-            statement,
+            statementSubject,
             'http://www.w3.org/ns/auth/acl#origin',
             undefined)
           .toArray()
@@ -158,13 +153,13 @@ ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback,
           async.some(origins, function (origin, done) {
             if (options.origin === origin) {
               debug('Found policy for origin: ' + origin)
-              return self.findSubgraphRule(graph, user, mode, statement, done)
+              return self.findSubgraphRule(graph, user, mode, statementSubject, done)
             }
             return done(false)
           }, found)
         } else {
           debug('No origin found, moving on.')
-          self.findSubgraphRule(graph, user, mode, statement, found)
+          self.findSubgraphRule(graph, user, mode, statementSubject, found)
         }
       }, done)
 
