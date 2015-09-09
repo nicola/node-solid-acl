@@ -19,14 +19,11 @@ ACL.prototype.isAcl = function (resource) {
 ACL.prototype.can = function (user, mode, resource, callback, options) {
   var self = this
   var accessType = 'accessTo'
-  var uris = []
+  var uris = utils.possibleACLs(resource, self.suffix)
 
   // If it is an ACL, only look for control this resource
-  if (self.isAcl()) {
+  if (self.isAcl(resource)) {
     mode = 'Control'
-    uris = [resource]
-  } else {
-    uris = utils.possibleACLs(resource, self.suffix)
   }
 
   async.eachSeries(
