@@ -3,6 +3,7 @@ module.exports = ACL
 var async = require('async')
 var debug = require('debug')('solid:acl')
 var utils = require('./lib/utils')
+var string = require('string')
 
 function ACL (store, opts) {
   var self = this
@@ -11,18 +12,28 @@ function ACL (store, opts) {
   self.suffix = opts.suffix || '.acl'
 }
 
+ACL.prototype.isAcl = function (resource) {
+  return !!string(resource).endsWith(this.suffix)
+}
+
 ACL.prototype.can = function (user, mode, resource, callback, options) {
   var self = this
   var accessType = 'accessTo'
-  var uris = utils.possibleACLs(resource, self.suffix)
+  var uris = []
+
+  // If it is an ACL, only look for control this resource
+  if (self.isAcl()) {
+    mode = 'Control'
+    uris = [resource]
+  } else {
+    uris = utils.possibleACLs(resource, self.suffix)
+  }
 
   async.eachSeries(
     uris,
     function (uri, done) {
       self.store.graph(uri, function (graph, err) {
-        if (err || !graph) {
-          return done(null)
-        }
+        if (err || !graph) return done(null)
 
         self.findRule(graph, user, mode, accessType, uri, function (err, allowed) {
           accessType = 'defaultForNew'
@@ -45,7 +56,6 @@ ACL.prototype.can = function (user, mode, resource, callback, options) {
 
 ACL.prototype.findSubgraphRule = function (graph, user, mode, uri, callback) {
   var self = this
-  debug('In allow origin')
 
   // Owner statement
   var ownerStatements = graph.match(
@@ -125,11 +135,6 @@ ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback,
 
   var statements = utils.getMode(graph, mode)
 
-  // Also check for
-  if (mode !== 'Control') {
-    statements = utils.getMode(graph, 'Control')
-      .concat(statements)
-  }
   if (mode === 'Append') {
     statements = statements
       .concat(utils.getMode(graph, 'Write'))
