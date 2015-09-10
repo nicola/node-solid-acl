@@ -82,10 +82,42 @@ describe('ACL Class', function () {
           })
       })
       it('should not "Read"/"Write"/"Control"/"Append" if Origin is present and doesn\'t match the request', function (done) {
-        done()
+        var store = new InMemoryStore(rdf)
+        var acl = new ACL(store, {
+          suffix: '.acl'
+        })
+        rdf.parseTurtle(
+          '<#0>\n' +
+          ' <http://www.w3.org/ns/auth/acl#accessTo> <http://example.tld/example.ttl>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#origin> <http://origin.tld>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#mode> <http://www.w3.org/ns/auth/acl#Read>, <http://www.w3.org/ns/auth/acl#Write> .\n',
+          function (graph) {
+            store.add('http://example.tld/example.ttl.acl', graph, function (graph) {
+              acl.can(user1, 'Read', 'http://example.tld/example.ttl', function (err) {
+                assert.ok(err)
+                done()
+              })
+            })
+          })
       })
       it('should "Read"/"Write"/"Control"/"Append" if Agent rule is found', function (done) {
-        done()
+        var store = new InMemoryStore(rdf)
+        var acl = new ACL(store, {
+          suffix: '.acl'
+        })
+        rdf.parseTurtle(
+          '<#0>\n' +
+          ' <http://www.w3.org/ns/auth/acl#accessTo> <http://example.tld/example.ttl>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#agent> <' + user1 + '>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#mode> <http://www.w3.org/ns/auth/acl#Read>, <http://www.w3.org/ns/auth/acl#Write> .\n',
+          function (graph) {
+            store.add('http://example.tld/example.ttl.acl', graph, function (graph) {
+              acl.can(user1, 'Read', 'http://example.tld/example.ttl', function (err) {
+                assert.notOk(err)
+                done()
+              })
+            })
+          })
       })
       it('should "Read"/"Write"/"Control"/"Append" if AgentClass rule is found', function (done) {
         done()

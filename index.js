@@ -19,73 +19,52 @@ ACL.prototype.isAcl = function (resource) {
 ACL.prototype.can = function (user, mode, resource, callback, options) {
   var self = this
   var accessType = 'accessTo'
-  var uris = utils.possibleACLs(resource, self.suffix)
+  var acls = utils.possibleACLs(resource, self.suffix)
+  options = options || {}
 
   // If it is an ACL, only look for control this resource
   if (self.isAcl(resource)) {
     mode = 'Control'
   }
 
-  var hasAcl = false
   async.eachSeries(
-    uris,
-    function (uri, done) {
-      self.store.graph(uri, function (graph, err) {
-        if (err || !graph) return done()
-        hasAcl = true
-
-        self.findRule(graph, user, mode, accessType, uri, function (err, allowed) {
+    acls,
+    function (acl, next) {
+      self.store.graph(acl, function (graph, err) {
+        if (err || !graph) {
           accessType = 'defaultForNew'
-          done(err ? false : allowed)
+          return next()
+        }
+
+        self.findRule(graph, user, mode, resource, accessType, acl, function (err, allowed) {
+          if (!allowed) {
+            err = new Error('Acl resource found, but no policy you are looking for')
+            debug(err.message)
+          }
+          return next(allowed || err)
         }, options)
       })
     },
     function (err) {
-      // result is false when no policy is found
-      // result is true if ACL statement is found
-      if (err === null && !hasAcl) {
+      if (!err) {
         debug('No ACL resource found - access allowed')
-      } else
-      if (err === null && hasAcl) {
-        debug('One or more ACL resources found, none had policy - access negated')
-        err = new Error('No policy found in ACL')
-      } else
+      }
+
       if (err === true) {
         debug('ACL policy found')
         err = null
       }
+
       return callback(err)
     })
 }
 
-ACL.prototype.findSubgraphRule = function (graph, user, mode, uri, callback) {
+ACL.prototype.findAgentClass = function (graph, user, mode, resource, acl, callback) {
   var self = this
-
-  // Owner statement
-  var ownerStatements = graph.match(
-    uri,
-    'http://www.w3.org/ns/auth/acl#owner',
-    user)
-
-  if (ownerStatements.length) {
-    debug(mode + ' access allowed (as owner) for: ' + user)
-    return callback(true)
-  }
-
-  // Agent statement
-  var agentStatements = graph.match(
-    uri,
-    'http://www.w3.org/ns/auth/acl#agent',
-    user)
-
-  if (agentStatements.length) {
-    debug(mode + ' access allowed (as agent) for: ' + user)
-    return callback(true)
-  }
 
   // Agent class statement
   var agentClassStatements = graph.match(
-    uri,
+    resource,
     'http://www.w3.org/ns/auth/acl#agentClass',
     undefined)
 
@@ -100,9 +79,9 @@ ACL.prototype.findSubgraphRule = function (graph, user, mode, uri, callback) {
       debug(mode + ' allowed access as FOAF agent')
       return found(true)
     }
-    var groupURI = agentClassTriple.subject.toString()
 
-    self.store.graph(groupURI, function (err, groupGraph) {
+    var agentClassURI = agentClassTriple.subject.toString()
+    self.store.graph(agentClassURI, function (err, groupGraph) {
       if (err) return found(err)
       // Type statement
       var typeStatements = groupGraph.match(
@@ -117,7 +96,7 @@ ACL.prototype.findSubgraphRule = function (graph, user, mode, uri, callback) {
           user)
 
         if (memberStatements.length) {
-          debug(user + ' listed as member of the group ' + groupURI)
+          debug(user + ' listed as member of the group ' + agentClassURI)
           return found(true)
         }
       }
@@ -126,19 +105,19 @@ ACL.prototype.findSubgraphRule = function (graph, user, mode, uri, callback) {
   }, callback)
 }
 
-ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback, options) {
+ACL.prototype.findRule = function (graph, user, mode, resource, accessType, acl, callback, options) {
   var self = this
 
   // TODO check if this is necessary
   if (graph.length === 0) {
-    debug('No policies found in ' + uri)
-    return callback(null, false)
+    debug('ACL ' + acl + ' is empty')
+    return callback(new Error('No policy found'))
   }
 
-  debug('Found policies in ' + uri)
+  debug('Found policies in ' + acl)
 
+  // Check for mode
   var statements = utils.getMode(graph, mode)
-
   if (mode === 'Append') {
     statements = statements
       .concat(utils.getMode(graph, 'Write'))
@@ -147,31 +126,34 @@ ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback,
   async.some(
     statements,
     function (statement, done) {
-      var accesses = utils.getAccessType(graph, statementSubject, accessType, uri)
-
       var statementSubject = statement.subject.toString()
-      async.some(accesses, function (access, found) {
-        var origins = graph
-          .match(
-            statementSubject,
-            'http://www.w3.org/ns/auth/acl#origin',
-            undefined)
-          .toArray()
 
-        if (self.origin.length > 0 && origins.length > 0) {
-          async.some(origins, function (origin, done) {
-            if (options.origin === origin) {
-              debug('Found policy for origin: ' + origin)
-              return self.findSubgraphRule(graph, user, mode, statementSubject, done)
-            }
-            return done(false)
-          }, found)
-        } else {
-          debug('No origin found, moving on.')
-          self.findSubgraphRule(graph, user, mode, statementSubject, found)
-        }
-      }, done)
+      // Check for origin
+      var matchOrigin = utils.matchOrigin(graph, statementSubject, options.origin)
+      if (!matchOrigin) {
+        return done(false)
+      }
 
+      // Check for accessTo/defaultForNew
+      var accesses = utils.getAccessType(graph, statementSubject, accessType, resource)
+      if (!accesses.length) {
+        return done(false)
+      }
+
+      // Check for Agent
+      console.log(resource)
+      var agentStatements = graph.match(
+        statementSubject,
+        'http://www.w3.org/ns/auth/acl#agent',
+        user)
+      console.log(agentStatements)
+      if (agentStatements.length) {
+        debug(mode + ' access allowed (as agent) for: ' + user)
+        return done(true)
+      }
+
+      // Check for AgentClass
+      return self.findAgentClass(graph, user, mode, resource, statementSubject, done)
     },
     function (found) {
       if (!found) {
@@ -179,7 +161,7 @@ ACL.prototype.findRule = function (graph, user, accessType, mode, uri, callback,
         if (!user || user.length === 0) {
           debug('Authentication required')
           err.status = 401
-          err.message = 'Access to ' + uri + ' requires authorization'
+          err.message = 'Access to ' + resource + ' requires authorization'
         } else {
           debug(mode + ' access denied for: ' + user)
           err.status = 403
