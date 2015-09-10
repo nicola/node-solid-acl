@@ -26,25 +26,32 @@ ACL.prototype.can = function (user, mode, resource, callback, options) {
     mode = 'Control'
   }
 
+  var hasAcl = false
   async.eachSeries(
     uris,
     function (uri, done) {
       self.store.graph(uri, function (graph, err) {
-        if (err || !graph) return done(null)
+        if (err || !graph) return done()
+        hasAcl = true
 
         self.findRule(graph, user, mode, accessType, uri, function (err, allowed) {
           accessType = 'defaultForNew'
-          done(err ? null : allowed)
+          done(err ? false : allowed)
         }, options)
       })
     },
     function (err) {
       // result is false when no policy is found
       // result is true if ACL statement is found
-      if (typeof err === 'boolean') {
-        debug(err ?
-          'No ACL policies present - access allowed' :
-          'ACL allowed')
+      if (err === null && !hasAcl) {
+        debug('No ACL resource found - access allowed')
+      } else
+      if (err === null && hasAcl) {
+        debug('One or more ACL resources found, none had policy - access negated')
+        err = new Error('No policy found in ACL')
+      } else
+      if (err === true) {
+        debug('ACL policy found')
         err = null
       }
       return callback(err)
