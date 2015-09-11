@@ -4,11 +4,12 @@ var async = require('async')
 var debug = require('debug')('solid:acl')
 var utils = require('./lib/utils')
 var string = require('string')
+var $rdf = require('rdflib')
 
 function ACL (opts) {
   var self = this
   opts = opts || {}
-  self.store = opts.store
+  self.fetch = opts.store ? opts.store.graph : opts.fetch
   self.suffix = opts.suffix || '.acl'
 }
 
@@ -33,7 +34,7 @@ ACL.prototype.can = function (user, mode, resource, callback, options) {
     function (acl, next) {
 
       // Let's see if there is a file..
-      self.store.graph(acl, function (graph, err) {
+      self.fetch(acl, function (graph, err) {
         if (err || !graph) {
           // If no file is found and we want to Control,
           // we should not be able to do that!
@@ -57,7 +58,7 @@ ACL.prototype.can = function (user, mode, resource, callback, options) {
       })
     },
     function (err) {
-      if (!err) {
+      if (err === false) {
         debug('No ACL resource found - access allowed')
       }
 
@@ -92,7 +93,7 @@ ACL.prototype.findAgentClass = function (graph, user, mode, resource, acl, callb
     }
 
     var agentClassURI = agentClassTriple.subject.toString()
-    self.store.graph(agentClassURI, function (err, groupGraph) {
+    self.fetch(agentClassURI, function (err, groupGraph) {
       if (err) return found(err)
       // Type statement
       var typeStatements = groupGraph.match(
