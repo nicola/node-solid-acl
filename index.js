@@ -4,7 +4,6 @@ var async = require('async')
 var debug = require('debug')('solid:acl')
 var utils = require('./lib/utils')
 var string = require('string')
-var $rdf = require('rdflib')
 
 function ACL (opts) {
   var self = this
