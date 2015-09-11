@@ -29,17 +29,29 @@ ACL.prototype.can = function (user, mode, resource, callback, options) {
 
   async.eachSeries(
     acls,
+    // Looks for ACL, if found, looks for a rule
     function (acl, next) {
-      debug('Looking for ' + accessType)
+
+      // Let's see if there is a file..
       self.store.graph(acl, function (graph, err) {
         if (err || !graph) {
+          // If no file is found and we want to Control,
+          // we should not be able to do that!
+          // Control is only to Read and Write the current file!
           if (mode === 'Control') {
             return next(new Error("You can't Control an unexisting file"))
           }
           accessType = 'defaultForNew'
           return next()
         }
-        self.findRule(graph, user, mode, resource, accessType, acl, function (err, allowed) {
+        self.findRule(
+          graph, // The ACL graph
+          user, // The webId of the user
+          mode, // Read/Write/Append
+          resource, // The resource we want to access
+          accessType, // accessTo or defaultForNew
+          acl, // The current Acl file!
+          function (err, allowed) {
           return next(allowed || err)
         }, options)
       })
