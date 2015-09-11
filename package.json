@@ -32,7 +32,7 @@
   "devDependencies": {
     "mocha": "^2.2.5",
     "rdf-ext": "^0.2.6",
-    "rdf-inmemory-store": "^0.1.2",
+    "rdf-store-inmemory": "^0.1.2",
     "chai": "^3.0.0"
   }
 }
