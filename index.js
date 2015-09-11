@@ -30,12 +30,15 @@ ACL.prototype.can = function (user, mode, resource, callback, options) {
   async.eachSeries(
     acls,
     function (acl, next) {
+      debug('Looking for ' + accessType)
       self.store.graph(acl, function (graph, err) {
         if (err || !graph) {
+          if (mode === 'Control') {
+            return next(new Error("You can't Control an unexisting file"))
+          }
           accessType = 'defaultForNew'
           return next()
         }
-
         self.findRule(graph, user, mode, resource, accessType, acl, function (err, allowed) {
           if (!allowed) {
             err = new Error('Acl resource found, but no policy you are looking for')
@@ -141,12 +144,10 @@ ACL.prototype.findRule = function (graph, user, mode, resource, accessType, acl,
       }
 
       // Check for Agent
-      console.log(resource)
       var agentStatements = graph.match(
         statementSubject,
         'http://www.w3.org/ns/auth/acl#agent',
         user)
-      console.log(agentStatements)
       if (agentStatements.length) {
         debug(mode + ' access allowed (as agent) for: ' + user)
         return done(true)

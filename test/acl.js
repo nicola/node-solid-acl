@@ -96,6 +96,25 @@ describe('ACL Class', function () {
               acl.can(user1, 'Read', 'http://example.tld/example.ttl', function (err) {
                 assert.ok(err)
                 done()
+              }, {origin: 'http://differentorigin.tld'})
+            })
+          })
+      })
+      it('should not "Read"/"Write"/"Control"/"Append" if Origin is present and the request has no Origin', function (done) {
+        var store = new InMemoryStore(rdf)
+        var acl = new ACL(store, {
+          suffix: '.acl'
+        })
+        rdf.parseTurtle(
+          '<#0>\n' +
+          ' <http://www.w3.org/ns/auth/acl#accessTo> <http://example.tld/example.ttl>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#origin> <http://origin.tld>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#mode> <http://www.w3.org/ns/auth/acl#Read>, <http://www.w3.org/ns/auth/acl#Write> .\n',
+          function (graph) {
+            store.add('http://example.tld/example.ttl.acl', graph, function (graph) {
+              acl.can(user1, 'Read', 'http://example.tld/example.ttl', function (err) {
+                assert.ok(err)
+                done()
               })
             })
           })
@@ -119,17 +138,107 @@ describe('ACL Class', function () {
             })
           })
       })
-      it('should "Read"/"Write"/"Control"/"Append" if AgentClass rule is found', function (done) {
-        done()
-      })
-      it('should "Read"/"Write"/"Control"/"Append" if Owner rule is found', function (done) {
-        done()
+      it('should "Read"/"Write"/"Control"/"Append" if Agent rule is found and Origin matches the request', function (done) {
+        var store = new InMemoryStore(rdf)
+        var acl = new ACL(store, {
+          suffix: '.acl'
+        })
+        rdf.parseTurtle(
+          '<#0>\n' +
+          ' <http://www.w3.org/ns/auth/acl#accessTo> <http://example.tld/example.ttl>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#agent> <' + user1 + '>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#origin> <http://origin.tld>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#mode> <http://www.w3.org/ns/auth/acl#Read>, <http://www.w3.org/ns/auth/acl#Write> .\n',
+          function (graph) {
+            store.add('http://example.tld/example.ttl.acl', graph, function (graph) {
+              acl.can(user1, 'Read', 'http://example.tld/example.ttl', function (err) {
+                assert.notOk(err)
+                done()
+              }, {origin: 'http://origin.tld'})
+            })
+          })
       })
       it('should "Read"/"Write"/"Append" on defaultForNew in parent path', function (done) {
-        done()
+        var store = new InMemoryStore(rdf)
+        var acl = new ACL(store, {
+          suffix: '.acl'
+        })
+        rdf.parseTurtle(
+          '<#0>\n' +
+          ' <http://www.w3.org/ns/auth/acl#defaultForNew> <http://example.tld/>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#agent> <' + user1 + '>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#mode> <http://www.w3.org/ns/auth/acl#Read>, <http://www.w3.org/ns/auth/acl#Write> .\n',
+          function (graph) {
+            store.add('http://example.tld/.acl', graph, function (graph) {
+              acl.can(user1, 'Read', 'http://example.tld/example.ttl', function (err) {
+                assert.notOk(err)
+                acl.can(user1, 'Write', 'http://example.tld/example.ttl', function (err) {
+                  assert.notOk(err)
+                  acl.can(user1, 'Append', 'http://example.tld/example.ttl', function (err) {
+                    assert.notOk(err)
+                    done()
+                  })
+                })
+              })
+            })
+          })
       })
       it('should not "Control" an ACL file on defaultForNew in parent path', function (done) {
-        done()
+        var store = new InMemoryStore(rdf)
+        var acl = new ACL(store, {
+          suffix: '.acl'
+        })
+        rdf.parseTurtle(
+          '<#0>\n' +
+          ' <http://www.w3.org/ns/auth/acl#defaultForNew> <http://example.tld/>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#agent> <' + user1 + '>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#mode> <http://www.w3.org/ns/auth/acl#Control> .\n',
+          function (graph) {
+            store.add('http://example.tld/.acl', graph, function (graph) {
+              acl.can(user1, 'Write', 'http://example.tld/example.ttl.acl', function (err) {
+                assert.ok(err)
+                done()
+              })
+            })
+          })
+      })
+      it('should "Append" when only "Write" is granted', function (done) {
+        var store = new InMemoryStore(rdf)
+        var acl = new ACL(store, {
+          suffix: '.acl'
+        })
+        rdf.parseTurtle(
+          '<#0>\n' +
+          ' <http://www.w3.org/ns/auth/acl#accessTo> <http://example.tld/example.ttl>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#agent> <' + user1 + '>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#mode> <http://www.w3.org/ns/auth/acl#Write> .\n',
+          function (graph) {
+            store.add('http://example.tld/example.ttl.acl', graph, function (graph) {
+              acl.can(user1, 'Append', 'http://example.tld/example.ttl', function (err) {
+                assert.notOk(err)
+                done()
+              })
+            })
+          })
+      })
+      it('should "Append" when only "Write" is granted in defaultForNew', function (done) {
+        var store = new InMemoryStore(rdf)
+        var acl = new ACL(store, {
+          suffix: '.acl'
+        })
+        rdf.parseTurtle(
+          '<#0>\n' +
+          ' <http://www.w3.org/ns/auth/acl#defaultForNew> <http://example.tld/>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#agent> <' + user1 + '>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#mode> <http://www.w3.org/ns/auth/acl#Write> .\n',
+          function (graph) {
+            store.add('http://example.tld/.acl', graph, function (graph) {
+              acl.can(user1, 'Append', 'http://example.tld/example.ttl', function (err) {
+                assert.notOk(err)
+                done()
+              })
+            })
+          })
       })
     })
   })
