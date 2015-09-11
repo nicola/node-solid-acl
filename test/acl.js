@@ -47,7 +47,8 @@ describe('ACL Class', function () {
     describe('with no ACL file', function () {
       it('should give "Read"/"Write"/"Append" if no ACL is found', function (done) {
         var store = new InMemoryStore(rdf)
-        var acl = new ACL(store, {
+        var acl = new ACL({
+          store: store,
           suffix: '.acl'
         })
 
@@ -64,7 +65,8 @@ describe('ACL Class', function () {
     describe('with ACL file', function () {
       it('should not "Read"/"Write"/"Append" if no valid rule is found in existing ACL files', function (done) {
         var store = new InMemoryStore(rdf)
-        var acl = new ACL(store, {
+        var acl = new ACL({
+          store: store,
           suffix: '.acl'
         })
         rdf.parseTurtle(
@@ -83,7 +85,8 @@ describe('ACL Class', function () {
       })
       it('should not "Read"/"Write"/"Control"/"Append" if Origin is present and doesn\'t match the request', function (done) {
         var store = new InMemoryStore(rdf)
-        var acl = new ACL(store, {
+        var acl = new ACL({
+          store: store,
           suffix: '.acl'
         })
         rdf.parseTurtle(
@@ -102,7 +105,8 @@ describe('ACL Class', function () {
       })
       it('should not "Read"/"Write"/"Control"/"Append" if Origin is present and the request has no Origin', function (done) {
         var store = new InMemoryStore(rdf)
-        var acl = new ACL(store, {
+        var acl = new ACL({
+          store: store,
           suffix: '.acl'
         })
         rdf.parseTurtle(
@@ -121,7 +125,8 @@ describe('ACL Class', function () {
       })
       it('should "Read"/"Write"/"Control"/"Append" if Agent rule is found', function (done) {
         var store = new InMemoryStore(rdf)
-        var acl = new ACL(store, {
+        var acl = new ACL({
+          store: store,
           suffix: '.acl'
         })
         rdf.parseTurtle(
@@ -140,7 +145,8 @@ describe('ACL Class', function () {
       })
       it('should "Read"/"Write"/"Control"/"Append" if Agent rule is found and Origin matches the request', function (done) {
         var store = new InMemoryStore(rdf)
-        var acl = new ACL(store, {
+        var acl = new ACL({
+          store: store,
           suffix: '.acl'
         })
         rdf.parseTurtle(
@@ -160,7 +166,8 @@ describe('ACL Class', function () {
       })
       it('should "Read"/"Write"/"Append" on defaultForNew in parent path', function (done) {
         var store = new InMemoryStore(rdf)
-        var acl = new ACL(store, {
+        var acl = new ACL({
+          store: store,
           suffix: '.acl'
         })
         rdf.parseTurtle(
@@ -185,7 +192,8 @@ describe('ACL Class', function () {
       })
       it('should not "Control" an ACL file on defaultForNew in parent path', function (done) {
         var store = new InMemoryStore(rdf)
-        var acl = new ACL(store, {
+        var acl = new ACL({
+          store: store,
           suffix: '.acl'
         })
         rdf.parseTurtle(
@@ -204,7 +212,8 @@ describe('ACL Class', function () {
       })
       it('should "Append" when only "Write" is granted', function (done) {
         var store = new InMemoryStore(rdf)
-        var acl = new ACL(store, {
+        var acl = new ACL({
+          store: store,
           suffix: '.acl'
         })
         rdf.parseTurtle(
@@ -223,7 +232,8 @@ describe('ACL Class', function () {
       })
       it('should "Append" when only "Write" is granted in defaultForNew', function (done) {
         var store = new InMemoryStore(rdf)
-        var acl = new ACL(store, {
+        var acl = new ACL({
+          store: store,
           suffix: '.acl'
         })
         rdf.parseTurtle(

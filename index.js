@@ -5,10 +5,10 @@ var debug = require('debug')('solid:acl')
 var utils = require('./lib/utils')
 var string = require('string')
 
-function ACL (store, opts) {
+function ACL (opts) {
   var self = this
   opts = opts || {}
-  self.store = store
+  self.store = opts.store
   self.suffix = opts.suffix || '.acl'
 }
 
@@ -40,10 +40,6 @@ ACL.prototype.can = function (user, mode, resource, callback, options) {
           return next()
         }
         self.findRule(graph, user, mode, resource, accessType, acl, function (err, allowed) {
-          if (!allowed) {
-            err = new Error('Acl resource found, but no policy you are looking for')
-            debug(err.message)
-          }
           return next(allowed || err)
         }, options)
       })
