@@ -285,6 +285,19 @@ describe('ACL', function () {
             })
           })
       })
+
+      it('should return 404 on "Read"/"Write"/"Append" an ACL file that does not exist', function (done) {
+        var store = new InMemoryStore(rdf)
+        var acl = new ACL({
+          store: store,
+          suffix: '.acl'
+        })
+        
+        acl.can(user1, 'Control', 'http://example.tld/example.ttl.acl', function (err) {
+          assert.ok(err)
+          done()
+        })
+      })
     })
   })
 })

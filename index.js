@@ -26,6 +26,7 @@ ACL.prototype.isAcl = function (resource) {
 }
 
 ACL.prototype.can = function (user, mode, resource, callback, options) {
+  debug('Can ' + user + ' ' + mode + ' ' + resource + '?')
   var self = this
   var accessType = 'accessTo'
   var acls = utils.possibleACLs(resource, self.suffix)
@@ -60,8 +61,8 @@ ACL.prototype.can = function (user, mode, resource, callback, options) {
           resource, // The resource we want to access
           accessType, // accessTo or defaultForNew
           acl, // The current Acl file!
-          function (err, allowed) {
-          return next(allowed || err)
+          function (err) {
+          return next(!err || err)
         }, options)
       })
     },
@@ -73,6 +74,19 @@ ACL.prototype.can = function (user, mode, resource, callback, options) {
       if (err === true) {
         debug('ACL policy found')
         err = null
+      }
+
+      if (err) {
+        debug('Error: ' + err.message)
+        if (!user || user.length === 0) {
+          debug('Authentication required')
+          err.status = 401
+          err.message = 'Access to ' + resource + ' requires authorization'
+        } else {
+          debug(mode + ' access denied for: ' + user)
+          err.status = 403
+          err.message = 'Access denied for ' + user
+        }
       }
 
       return callback(err)
@@ -179,18 +193,8 @@ ACL.prototype.findRule = function (graph, user, mode, resource, accessType, acl,
     },
     function (found) {
       if (!found) {
-        var err = new Error()
-        if (!user || user.length === 0) {
-          debug('Authentication required')
-          err.status = 401
-          err.message = 'Access to ' + resource + ' requires authorization'
-        } else {
-          debug(mode + ' access denied for: ' + user)
-          err.status = 403
-          err.message = 'Access denied for ' + user
-        }
-        return callback(err)
+        return callback(new Error('Rule not found'))
       }
-      return callback(null, true)
+      return callback(null)
     })
 }
