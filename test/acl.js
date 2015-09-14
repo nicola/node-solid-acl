@@ -5,7 +5,7 @@ var assert = require('chai').assert
 var utils = require('../lib/utils')
 
 describe('utils', function () {
-  describe('possibleACLs', function () {
+  describe('.possibleACLs', function () {
     it('should return a list of ACLs in an ordered list of parent paths', function () {
       var list = utils.possibleACLs('http://example.com/a/b/c/foo', '.acl')
       assert.equal(list[0], 'http://example.com/a/b/c/foo.acl')
@@ -34,17 +34,32 @@ describe('utils', function () {
       assert.equal(list[0], '/.acl')
       assert.equal(list.length, 1)
     })
+
+    it('when suffix is present, should not add the suffix', function () {
+      var list = utils.possibleACLs('/a/b/c/foo.acl', '.acl')
+      assert.equal(list[0], '/a/b/c/foo.acl')
+      assert.equal(list[1], '/a/b/c/.acl')
+      assert.equal(list[2], '/a/b/.acl')
+      assert.equal(list[3], '/a/.acl')
+      assert.equal(list[4], '/.acl')
+
+      assert.equal(list.length, 5)
+
+      var list = utils.possibleACLs('/', '.acl')
+      assert.equal(list[0], '/.acl')
+      assert.equal(list.length, 1)
+    })
   })
 })
 
-describe('ACL Class', function () {
+describe('ACL', function () {
 
   var user1 = 'https://user1.databox.me/profile/card#me'
   var user2 = 'https://user2.databox.me/profile/card#me'
   var address = 'https://server.tld/test'
 
-  describe('can', function () {
-    describe('with no ACL file', function () {
+  describe('.can', function () {
+    describe('(without ACL file)', function () {
       it('should give "Read"/"Write"/"Append" if no ACL is found', function (done) {
         var store = new InMemoryStore(rdf)
         var acl = new ACL({
@@ -62,7 +77,7 @@ describe('ACL Class', function () {
       })
     })
 
-    describe('with ACL file', function () {
+    describe('(with ACL file)', function () {
       it('should not "Read"/"Write"/"Append" if no valid rule is found in existing ACL files', function (done) {
         var store = new InMemoryStore(rdf)
         var acl = new ACL({
@@ -244,6 +259,26 @@ describe('ACL Class', function () {
           function (graph) {
             store.add('http://example.tld/.acl', graph, function (graph) {
               acl.can(user1, 'Append', 'http://example.tld/example.ttl', function (err) {
+                assert.notOk(err)
+                done()
+              })
+            })
+          })
+      })
+      it('should "Read"/"Write"/"Append" an ACL file that the user "Control"-s', function (done) {
+        var store = new InMemoryStore(rdf)
+        var acl = new ACL({
+          store: store,
+          suffix: '.acl'
+        })
+        rdf.parseTurtle(
+          '<#0>\n' +
+          ' <http://www.w3.org/ns/auth/acl#accessTo> <http://example.tld/example.ttl>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#agent> <' + user1 + '>;\n' +
+          ' <http://www.w3.org/ns/auth/acl#mode> <http://www.w3.org/ns/auth/acl#Control> .\n',
+          function (graph) {
+            store.add('http://example.tld/example.ttl.acl', graph, function (graph) {
+              acl.can(user1, 'Control', 'http://example.tld/example.ttl.acl', function (err) {
                 assert.notOk(err)
                 done()
               })

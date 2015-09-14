@@ -8,7 +8,16 @@ var string = require('string')
 function ACL (opts) {
   var self = this
   opts = opts || {}
-  self.fetch = opts.store ? opts.store.graph : opts.fetch
+  if (opts.store && opts.store.graph && !opts.fetch) {
+    // This hack has to be kept until RDF-EXT changes its graph,
+    // err callback style
+    self.fetch = function (uri, callback, options) {
+      opts.store.graph(uri, function(graph, err) {
+        callback(err, graph)
+      }, options)
+    }
+  }
+  self.fetch = self.fetch || opts.fetch
   self.suffix = opts.suffix || '.acl'
 }
 
@@ -33,7 +42,7 @@ ACL.prototype.can = function (user, mode, resource, callback, options) {
     function (acl, next) {
 
       // Let's see if there is a file..
-      self.fetch(acl, function (graph, err) {
+      self.fetch(acl, function (err, graph) {
         if (err || !graph) {
           // If no file is found and we want to Control,
           // we should not be able to do that!
@@ -142,13 +151,17 @@ ACL.prototype.findRule = function (graph, user, mode, resource, accessType, acl,
       // Check for origin
       var matchOrigin = utils.matchOrigin(graph, statementSubject, options.origin)
       if (!matchOrigin) {
+        debug('The request does not match the origin')
         return done(false)
       }
 
       // Check for accessTo/defaultForNew
-      var accesses = utils.getAccessType(graph, statementSubject, accessType, resource)
-      if (!accesses.length) {
-        return done(false)
+      if (!self.isAcl(resource)) {
+        var accesses = utils.getAccessType(graph, statementSubject, accessType, resource)
+        if (!accesses.length) {
+          debug('Cannot find accessType ' + accessType)
+          return done(false)
+        }
       }
 
       // Check for Agent
