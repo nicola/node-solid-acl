@@ -111,7 +111,7 @@ ACL.prototype.findAgentClass = function (graph, user, mode, resource, acl, callb
   // Agent class statement
   var agentClassStatements = self.match(
     graph,
-    resource,
+    acl,
     'http://www.w3.org/ns/auth/acl#agentClass',
     undefined)
 
@@ -119,10 +119,10 @@ ACL.prototype.findAgentClass = function (graph, user, mode, resource, acl, callb
     return callback(false)
   }
 
-  async.some(agentClassStatements.toArray(), function (agentClassTriple, found) {
+  async.some(agentClassStatements, function (agentClassTriple, found) {
     // Check for FOAF groups
     debug('Found agentClass policy')
-    if (agentClassTriple.sameTerm('http://xmlns.com/foaf/0.1/Agent')) {
+    if (agentClassTriple.object.toString() === 'http://xmlns.com/foaf/0.1/Agent') {
       debug(mode + ' allowed access as FOAF agent')
       return found(true)
     }

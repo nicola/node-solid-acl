@@ -164,6 +164,26 @@ describe('ACL', function () {
   })
 
   describe('Resource ACL file is present', function () {
+    it('should always allow on foaf:Agent (public)', function (done) {
+      var store = new InMemoryStore(rdf)
+      var acl = new ACL({
+        store: store,
+        suffix: '.acl'
+      })
+      rdf.parseTurtle(
+        '<#0>\n' +
+        ' <http://www.w3.org/ns/auth/acl#accessTo> <http://example.tld/example.ttl>;\n' +
+        ' <http://www.w3.org/ns/auth/acl#agentClass> <http://xmlns.com/foaf/0.1/Agent>;\n' +
+        ' <http://www.w3.org/ns/auth/acl#mode> <http://www.w3.org/ns/auth/acl#Write> .\n',
+        function (graph) {
+          store.add('http://example.tld/example.ttl.acl', graph, function () {
+            acl.can(user1, 'Write', 'http://example.tld/example.ttl', function (err) {
+              assert.notOk(err)
+              done()
+            })
+          })
+        })
+    })
     it('should look for a defaultForNew if ACL is empty', function (done) {
       var store = new InMemoryStore(rdf)
       var acl = new ACL({
@@ -242,7 +262,7 @@ describe('ACL', function () {
           })
         })
     })
-    
+
     it('should "Append" if "Write" is granted', function (done) {
       var store = new InMemoryStore(rdf)
       var acl = new ACL({
@@ -267,7 +287,32 @@ describe('ACL', function () {
 
   describe('Parent ACL resource', function () {
 
-    it('should "Read"/"Write"/"Append"/"Control" on defaultForNew', function (done) {
+    it('should always allow on foaf:Agent (public) on defaultForNew', function (done) {
+      var store = new InMemoryStore(rdf)
+      var acl = new ACL({
+        store: store,
+        suffix: '.acl'
+      })
+      rdf.parseTurtle(
+        '<#0>\n' +
+        ' <http://www.w3.org/ns/auth/acl#defaultForNew> <http://example.tld/>;\n' +
+        ' <http://www.w3.org/ns/auth/acl#agentClass> <http://xmlns.com/foaf/0.1/Agent>;\n' +
+        ' <http://www.w3.org/ns/auth/acl#mode> <http://www.w3.org/ns/auth/acl#Write> .\n',
+        function (graph) {
+          store.add('http://example.tld/.acl', graph, function () {
+            rdf.parseTurtle('', function (graph) {
+              store.add('http://example.tld/example.ttl.acl', graph, function () {
+                acl.can(user1, 'Write', 'http://example.tld/example.ttl', function (err) {
+                  assert.notOk(err)
+                  done()
+                })
+              })
+            })
+          })
+        })
+    })
+
+    it('should "Read"/"Write"/"Append"/"Control" if specified on defaultForNew', function (done) {
       var store = new InMemoryStore(rdf)
       var acl = new ACL({
         store: store,
@@ -361,7 +406,7 @@ describe('ACL', function () {
         })
     })
   })
-  
+
   describe('Controlling an ACL file', function () {
 
     it('should "Read"/"Write"/"Append" an ACL file that the user "Control"-s', function (done) {
