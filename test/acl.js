@@ -112,9 +112,7 @@ describe('ACL', function () {
         ' <http://www.w3.org/ns/auth/acl#origin> <http://origin.tld>;\n' +
         ' <http://www.w3.org/ns/auth/acl#mode> <http://www.w3.org/ns/auth/acl#Read>, <http://www.w3.org/ns/auth/acl#Write> .\n',
         function (err, graph) {
-          console.log("NOT ADDED", err, graph)
           store.add('http://example.tld/example.ttl.acl', graph, function (err, graph) {
-            console.log("ADDED", err, graph)
             acl.can(user1, 'Read', 'http://example.tld/example.ttl', function (err) {
               assert.notOk(err)
               done()
