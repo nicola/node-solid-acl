@@ -13,7 +13,7 @@ $ npm install --save solid-acl
 
 ```javascript
 var ACL = require('solid-acl')
-var rdf = require('rdf-ext')()
+var rdf = require('rdf-ext')
 var FsStore = require('rdf-store-fs')
 
 var store = new FsStore(rdf)

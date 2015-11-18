@@ -8,7 +8,7 @@ var path = require('path')
 
 // This is the default match
 // That follows RDF-Interfaces
-function match(graph, s, p, o) {
+function match (graph, s, p, o) {
   return graph.match(s, p, o).toArray()
 }
 
@@ -16,13 +16,7 @@ function ACL (opts) {
   var self = this
   opts = opts || {}
   if (opts.store && opts.store.graph && !opts.fetch) {
-    // This hack has to be kept until RDF-EXT changes its graph,
-    // err callback style
-    self.fetch = function (uri, callback, options) {
-      opts.store.graph(uri, function(graph, err) {
-        callback(err, graph)
-      }, options)
-    }
+    self.fetch = opts.store.graph.bind(opts.store)
   }
   self.fetch = self.fetch || opts.fetch
   self.match = opts.match || match
