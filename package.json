@@ -1,6 +1,6 @@
 {
   "name": "solid-acl",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Access Control List, the solid way",
   "main": "index.js",
   "scripts": {
