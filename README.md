@@ -1,6 +1,8 @@
 # solid-acl
 
-Access Control List, the solid way
+[![](https://img.shields.io/badge/project-Solid-7C4DFF.svg?style=flat-square)](https://github.com/solid/solid)
+
+> Node/Javascript implementation of Access Control List for Solid
 
 ## Install
 
